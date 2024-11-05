@@ -10,7 +10,7 @@
 #define ADC_MAX 1023               // Résolution ADC
 #define SUPPLY_VOLTAGE 5           // Tension d'alimentation
 
-float targetTemperature = 60;      // Température cible en degrés Celsius par défaut
+float targetTemperature = -1;      // Initialisation sans cible de température
 #define TEMPERATURE_HYSTERESIS 2   // Hystérésis pour éviter de toggler fréquemment
 
 void setup() {
@@ -23,7 +23,6 @@ void loop() {
   if (Serial.available() > 0) {
     String input = Serial.readStringUntil('\n');
     targetTemperature = input.toFloat();  // Met à jour la température cible
-    Serial.print("Nouvelle température cible reçue : ");
     Serial.println(targetTemperature);
   }
 
@@ -41,19 +40,18 @@ void loop() {
   temperature = 1.0 / temperature;
   temperature -= 273.15;
 
-  // Si la température est dans une plage raisonnable
-  if (temperature > -20 && temperature < 300) {
-    Serial.print("Température actuelle : ");
-    Serial.println(temperature);
+  // Afficher la température actuelle
+  Serial.println(temperature);
 
-    // Contrôle de l'élément chauffant
+  // Si une température cible a été définie, contrôler l'élément chauffant
+  if (targetTemperature > 0) {
     if (temperature < targetTemperature - TEMPERATURE_HYSTERESIS) {
       digitalWrite(HEATER_PIN, HIGH);  // Allumer l'élément chauffant
     } else if (temperature >= targetTemperature + TEMPERATURE_HYSTERESIS) {
       digitalWrite(HEATER_PIN, LOW);   // Éteindre l'élément chauffant
     }
   } else {
-    Serial.println("Erreur de lecture");
+    digitalWrite(HEATER_PIN, LOW);   // Éteindre l'élément chauffant si aucune cible n'est définie
   }
 
   delay(1000);  // Attendre une seconde avant la prochaine lecture

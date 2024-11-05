@@ -1,5 +1,6 @@
 import serial
 import time
+from threading import Thread
 from colorama import Fore, Style, init
 
 # Initialiser colorama
@@ -13,17 +14,29 @@ baud_rate = 9600
 ser = serial.Serial(arduino_port, baud_rate)
 time.sleep(2)
 
-try:
-    # Demander la température cible à l'utilisateur
-    target_temperature = input("Entrez la température cible : ")
-    ser.write(f"{target_temperature}\n".encode())  # Envoie la température cible à l'Arduino
-
+def read_from_arduino():
+    """Lit en continu la température depuis l'Arduino et l'affiche."""
     while True:
         if ser.in_waiting > 0:
-            # Lire et afficher la température actuelle reçue de l'Arduino
             line = ser.readline().decode('utf-8').rstrip()
-            print(f"Température reçue par python : {Fore.RED}{line}{Style.RESET_ALL}")
+            print(f"Température reçue par Python : {Fore.RED}{line}{Style.RESET_ALL}")
 
+def send_target_temperature():
+    """Demande et envoie une nouvelle température cible à l'Arduino."""
+    while True:
+        target_temperature = input("Entrez une nouvelle température cible (ou appuyez sur Entrée pour ignorer) : ")
+        if target_temperature:
+            # Affiche la température cible en vert
+            print(f"Température cible envoyée : {Fore.GREEN}{target_temperature}{Style.RESET_ALL}")
+            ser.write(f"{target_temperature}\n".encode())  # Envoie la température cible à l'Arduino
+
+# Crée un thread pour lire les données en continu
+thread = Thread(target=read_from_arduino)
+thread.daemon = True  # Le thread s'arrête quand le programme principal est arrêté
+thread.start()
+
+try:
+    send_target_temperature()  # Permet à l'utilisateur de définir la température cible à tout moment
 except KeyboardInterrupt:
     print("Arrêt du programme.")
 finally:
