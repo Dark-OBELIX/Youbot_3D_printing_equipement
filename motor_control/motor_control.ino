@@ -11,13 +11,26 @@ void setup() {
 
   // Activation du moteur
   digitalWrite(ENABLE_PIN, LOW); // LOW active le moteur
-  digitalWrite(DIR_PIN, HIGH);   // Définir la direction en avant
 }
 
 void loop() {
-  // Faire tourner le moteur en continu dans une direction
-  digitalWrite(STEP_PIN, HIGH);
-  delayMicroseconds(1000); // Ajustez cette valeur pour contrôler la vitesse
-  digitalWrite(STEP_PIN, LOW);
-  delayMicroseconds(1000); // Ajustez cette valeur pour contrôler la vitesse
+  // Inversion de la direction
+  digitalWrite(DIR_PIN, HIGH);   // Tourne dans un sens
+  tournerMoteur(1000);           // Faire tourner le moteur pendant 1000 pas
+
+  delay(1000);                   // Pause de 1 seconde
+
+  digitalWrite(DIR_PIN, LOW);    // Tourne dans l'autre sens
+  tournerMoteur(1000);           // Faire tourner le moteur pendant 1000 pas
+
+  delay(1000);                   // Pause de 1 seconde
+}
+
+void tournerMoteur(int nombreDePas) {
+  for (int i = 0; i < nombreDePas; i++) {
+    digitalWrite(STEP_PIN, HIGH);
+    delayMicroseconds(1000); // Ajustez cette valeur pour la vitesse
+    digitalWrite(STEP_PIN, LOW);
+    delayMicroseconds(1000); // Ajustez cette valeur pour la vitesse
+  }
 }
