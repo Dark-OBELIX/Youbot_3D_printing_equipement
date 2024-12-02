@@ -1,6 +1,6 @@
 #include <math.h>
 
-// Configuration de la chauffe
+// Heating configuration
 #define THERMISTOR_PIN A13
 #define HEATER_PIN 10
 #define SERIES_RESISTOR 4700
@@ -11,61 +11,61 @@
 #define SUPPLY_VOLTAGE 5
 #define TEMPERATURE_HYSTERESIS 2
 
-// Configuration du moteur
+// Motor configuration
 #define DIR_PIN 28
 #define STEP_PIN 26
 #define ENABLE_PIN 24
 
-// Variables de contrôle
-float targetTemperature = -1;    // Température cible initialisée à -1 (désactivée)
-bool moteurActif = false;        // Indicateur du statut du moteur
+// Control variables
+float targetTemperature = -1;    // Target temperature initialized to -1 (disabled)
+bool motorActive = false;        // Motor status indicator
 
 void setup() {
   Serial.begin(9600);
 
-  // Initialisation des broches
+  // Initialize pins
   pinMode(HEATER_PIN, OUTPUT);
   pinMode(DIR_PIN, OUTPUT);
   pinMode(STEP_PIN, OUTPUT);
   pinMode(ENABLE_PIN, OUTPUT);
 
-  digitalWrite(ENABLE_PIN, HIGH); // Désactive le moteur par défaut
+  digitalWrite(ENABLE_PIN, HIGH); // Disable motor by default
 }
 
 void loop() {
-  // Lecture des commandes depuis le port série
+  // Read commands from the serial port
   if (Serial.available() > 0) {
     String input = Serial.readStringUntil('\n');
-    input.trim();  // Supprime les espaces ou retours à la ligne
+    input.trim();  // Remove spaces or line breaks
 
     if (input.equalsIgnoreCase("start")) {
-      startMoteur();
+      startMotor();
     } 
     else if (input.equalsIgnoreCase("stop")) {
-      stopMoteur();
+      stopMotor();
     } 
     else {
       float temp = input.toFloat();
       if (temp > 0) {
         targetTemperature = temp;
-        Serial.print("Température cible définie à : ");
+        Serial.print("Target temperature set to: ");
         Serial.println(targetTemperature);
       }
     }
   }
 
-  // Contrôle de la température
-  gererChauffe();
+  // Temperature control
+  manageHeating();
 
-  delay(100);  // Petit délai pour éviter une surcharge
+  delay(100);  // Small delay to avoid overload
 }
 
-// Fonction de contrôle du chauffage
-void gererChauffe() {
+// Heating control function
+void manageHeating() {
   int adcValue = analogRead(THERMISTOR_PIN);
   float resistance = SERIES_RESISTOR / ((SUPPLY_VOLTAGE / (adcValue / (float)ADC_MAX)) - 1);
 
-  // Calcul de la température
+  // Calculate temperature
   float temperature = resistance / THERMISTOR_NOMINAL;
   temperature = log(temperature);
   temperature /= B_COEFFICIENT;
@@ -73,50 +73,50 @@ void gererChauffe() {
   temperature = 1.0 / temperature;
   temperature -= 273.15;
 
-  Serial.print("Température actuelle : ");
+  Serial.print("Current temperature: ");
   Serial.println(temperature);
 
   if (targetTemperature > 0) {
     if (temperature < targetTemperature - TEMPERATURE_HYSTERESIS) {
-      digitalWrite(HEATER_PIN, HIGH);  // Allumer l'élément chauffant
+      digitalWrite(HEATER_PIN, HIGH);  // Turn on the heater
     } else if (temperature >= targetTemperature + TEMPERATURE_HYSTERESIS) {
-      digitalWrite(HEATER_PIN, LOW);   // Éteindre l'élément chauffant
+      digitalWrite(HEATER_PIN, LOW);   // Turn off the heater
     }
   } else {
-    digitalWrite(HEATER_PIN, LOW);     // Désactiver si aucune cible
+    digitalWrite(HEATER_PIN, LOW);     // Disable if no target
   }
 }
 
-// Fonction pour démarrer le moteur
-void startMoteur() {
-  if (!moteurActif) {
-    moteurActif = true;
-    digitalWrite(ENABLE_PIN, LOW);  // Activer le moteur
-    Serial.println("Moteur démarré.");
+// Function to start the motor
+void startMotor() {
+  if (!motorActive) {
+    motorActive = true;
+    digitalWrite(ENABLE_PIN, LOW);  // Activate the motor
+    Serial.println("Motor started.");
   }
 
-  // Faire tourner le moteur en continu tant qu'il est actif
-  while (moteurActif) {
-    digitalWrite(DIR_PIN, HIGH);    // Configurer la direction
+  // Run the motor continuously while active
+  while (motorActive) {
+    digitalWrite(DIR_PIN, HIGH);    // Set direction
     digitalWrite(STEP_PIN, HIGH);
-    delayMicroseconds(1000);        // Ajustez cette valeur pour la vitesse
+    delayMicroseconds(1000);        // Adjust this value for speed
     digitalWrite(STEP_PIN, LOW);
     delayMicroseconds(1000);
 
-    // Vérifier si une commande "stop" arrive
+    // Check if a "stop" command is received
     if (Serial.available() > 0) {
       String input = Serial.readStringUntil('\n');
       input.trim();
       if (input.equalsIgnoreCase("stop")) {
-        stopMoteur();
+        stopMotor();
       }
     }
   }
 }
 
-// Fonction pour arrêter le moteur
-void stopMoteur() {
-  moteurActif = false;
-  digitalWrite(ENABLE_PIN, HIGH);  // Désactiver le moteur
-  Serial.println("Moteur arrêté.");
+// Function to stop the motor
+void stopMotor() {
+  motorActive = false;
+  digitalWrite(ENABLE_PIN, HIGH);  // Deactivate the motor
+  Serial.println("Motor stopped.");
 }

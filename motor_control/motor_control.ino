@@ -1,43 +1,43 @@
-#define DIR_PIN 28    // Broche de direction (DIR)
-#define STEP_PIN 26   // Broche de pas (STEP)
-#define ENABLE_PIN 24 // Broche d'activation (ENABLE)
+#define DIR_PIN 28    // Direction pin (DIR)
+#define STEP_PIN 26   // Step pin (STEP)
+#define ENABLE_PIN 24 // Enable pin (ENABLE)
 
-// Variables pour l'ajustement de l'extrusion
-float longueurTheorique = 100.0;  // Longueur de filament à extruder (mm)
-float longueurReelle = 110;      // Longueur mesurée en sortie (mm)
+// Variables for extrusion adjustment
+float theoreticalLength = 100.0;  // Filament length to extrude (mm)
+float actualLength = 110.0;       // Measured output length (mm)
 
-// Calcul du facteur de correction
-float facteurCorrection = longueurTheorique / longueurReelle;
+// Correction factor calculation
+float correctionFactor = theoreticalLength / actualLength;
 
 void setup() {
-  // Initialisation des broches comme sorties
+  // Initialize pins as outputs
   pinMode(DIR_PIN, OUTPUT);
   pinMode(STEP_PIN, OUTPUT);
   pinMode(ENABLE_PIN, OUTPUT);
 
-  // Activation du moteur
-  digitalWrite(ENABLE_PIN, LOW); // LOW active le moteur
-  digitalWrite(DIR_PIN, HIGH);   // Sens de l'extrusion
+  // Activate the motor
+  digitalWrite(ENABLE_PIN, LOW); // LOW activates the motor
+  digitalWrite(DIR_PIN, HIGH);   // Set extrusion direction
 }
 
 void loop() {
-  extruder(longueurTheorique);
-  delay(5000); // Pause avant la prochaine extrusion (simulée)
+  extrude(theoreticalLength);
+  delay(5000); // Pause before the next (simulated) extrusion
 }
 
-void extruder(float longueurEnMM) {
-  // Convertir la longueur en nombre de pas en fonction du facteur de correction
-  int nombreDePas = convertirMMEnPas(longueurEnMM * facteurCorrection);
+void extrude(float lengthInMM) {
+  // Convert length to steps based on the correction factor
+  int steps = convertMMToSteps(lengthInMM * correctionFactor);
   
-  for (int i = 0; i < nombreDePas; i++) {
+  for (int i = 0; i < steps; i++) {
     digitalWrite(STEP_PIN, HIGH);
-    delayMicroseconds(1000); // Ajustez cette valeur pour la vitesse
+    delayMicroseconds(1000); // Adjust this value for speed
     digitalWrite(STEP_PIN, LOW);
     delayMicroseconds(1000);
   }
 }
 
-int convertirMMEnPas(float longueur) {
-  float pasParMM = 100.0; // Ajustez en fonction des caractéristiques du moteur et de l'extrudeur
-  return int(longueur * pasParMM);
+int convertMMToSteps(float length) {
+  float stepsPerMM = 100.0; // Adjust based on motor and extruder characteristics
+  return int(length * stepsPerMM);
 }
