@@ -50,12 +50,14 @@ int main(int argc, char **argv) {
 
     // Define the positions
     std::vector<std::vector<double>> positions = {
-        {4.4, 2.1, -0.9, 2.2, 0},  // Position 1
-        {4.45, 2.7, -2.0, 2.8, 0}, // Position 2
-        {5.17, 2.7, -2.0, 2.7, 0}, // Position 3
-        {5.2, 2.2, -1.1, 2.1, 0.5}   // Position 4
+        {4.4, 2.1, -0.9, 2.2},  // Position 1
+        {4.45, 2.7, -2.0, 2.8}, // Position 2
+        {5.17, 2.7, -2.0, 2.7}, // Position 3
+        {5.2, 2.2, -1.1, 2.1}   // Position 4
     };
 
+    std::vector<double> neutral_position = {0.0, 0.0, 0.0, 0.0}; // Neutral position
+    double neutral_wait_time = 0.5; // Half a second for neutral position
     double wait_time = 5.0; // Adjust wait time for slower movements
 
     while (ros::ok()) {
@@ -69,6 +71,11 @@ int main(int argc, char **argv) {
         }
 
         if (input >= 1 && input <= 4) {
+            // Move to neutral position first
+            ROS_INFO("Moving to neutral position.");
+            sendTrajectoryGoal(ac, neutral_position, neutral_wait_time);
+
+            // Move to the selected position
             ROS_INFO("Moving to position %d", input);
             sendTrajectoryGoal(ac, positions[input - 1], wait_time);
         } else {
