@@ -2,6 +2,7 @@
 #include "actionlib/client/simple_action_client.h"
 #include "control_msgs/FollowJointTrajectoryAction.h"
 #include <vector>
+#include <iostream>
 
 // Function to create and send a trajectory goal
 void sendTrajectoryGoal(actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> &ac, 
@@ -11,24 +12,22 @@ void sendTrajectoryGoal(actionlib::SimpleActionClient<control_msgs::FollowJointT
     trajectory_msgs::JointTrajectoryPoint point;
 
     // Define joint names
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < positions.size(); i++) {
         std::stringstream jointName;
         jointName << "arm_joint_" << (i + 1);
         goal.trajectory.joint_names.push_back(jointName.str());
     }
 
     // Define joint positions
-    for (const double &pos : positions) {
-        point.positions.push_back(pos);
-        point.velocities.push_back(0.0);  // Can remain at 0.0 as time controls speed
-        point.accelerations.push_back(0.0);
-    }
-
+    point.positions = positions;
+    point.velocities.assign(positions.size(), 0.0);  // Set velocities to 0.0
+    point.accelerations.assign(positions.size(), 0.0); // Set accelerations to 0.0
     point.time_from_start = ros::Duration(wait_time);  // Larger value = slower movement
     goal.trajectory.points.push_back(point);
     goal.trajectory.header.frame_id = "arm_link_0";
     goal.trajectory.header.stamp = ros::Time::now();
 
+    // Send the goal and wait for the result
     ac.sendGoal(goal);
     ac.waitForResult(ros::Duration(wait_time + 5)); // Buffer time
 
@@ -39,21 +38,43 @@ void sendTrajectoryGoal(actionlib::SimpleActionClient<control_msgs::FollowJointT
 }
 
 int main(int argc, char **argv) {
-    ros::init(argc, argv, "youbot_go_to_position_1");
+    ros::init(argc, argv, "youbot_select_position");
     ros::NodeHandle n;
 
+    // Connect to the action server
     actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> ac("arm_1/arm_controller/follow_joint_trajectory", true);
 
     ROS_INFO("Waiting for the action server to start.");
     ac.waitForServer();
     ROS_INFO("Action server started.");
 
-    // Target position 1
-    std::vector<double> position1 = {1.2, 2.7, -3, 0.8, 0.5}; 
-    double wait_time = 5.0; // Extended wait time for slower movement
+    // Define the positions
+    std::vector<std::vector<double>> positions = {
+        {4.4, 2.1, -0.9, 2.2, 0},  // Position 1
+        {4.45, 2.7, -2.0, 2.8, 0}, // Position 2
+        {5.17, 2.7, -2.0, 2.7, 0}, // Position 3
+        {5.2, 2.2, -1.1, 2.1, 0.5}   // Position 4
+    };
 
-    // Send the goal
-    sendTrajectoryGoal(ac, position1, wait_time);
+    double wait_time = 5.0; // Adjust wait time for slower movements
+
+    while (ros::ok()) {
+        int input;
+        std::cout << "Enter the target position (1, 2, 3, 4) or 0 to exit: ";
+        std::cin >> input;
+
+        if (input == 0) {
+            std::cout << "Exiting the program." << std::endl;
+            break;
+        }
+
+        if (input >= 1 && input <= 4) {
+            ROS_INFO("Moving to position %d", input);
+            sendTrajectoryGoal(ac, positions[input - 1], wait_time);
+        } else {
+            std::cout << "Invalid input. Please enter a number between 1 and 4." << std::endl;
+        }
+    }
 
     return 0;
 }
