@@ -17,8 +17,10 @@
 #define ENABLE_PIN 24
 
 // Control variables
-float targetTemperature = -1;    // Target temperature initialized to -1 (disabled)
-bool motorActive = false;        // Motor status indicator
+float targetTemperature = 185;  // Default target temperature in Celsius
+unsigned long motorRunDuration = 5000; // Default motor run duration in milliseconds
+bool motorActive = false;       // Motor status indicator
+bool startCommandReceived = false; // Indicates if the "Start" command has been received
 
 void setup() {
   Serial.begin(9600);
@@ -30,38 +32,73 @@ void setup() {
   pinMode(ENABLE_PIN, OUTPUT);
 
   digitalWrite(ENABLE_PIN, HIGH); // Disable motor by default
+  Serial.println("[INFO] : System initialized. Send 'Start <temperature> <duration>' to begin.");
 }
 
 void loop() {
-  // Read commands from the serial port
+  // Check for user command
   if (Serial.available() > 0) {
     String input = Serial.readStringUntil('\n');
-    input.trim();  // Remove spaces or line breaks
+    input.trim(); // Remove whitespace and newline characters
 
-    if (input.equalsIgnoreCase("start")) {
-      startMotor();
-    } 
-    else if (input.equalsIgnoreCase("stop")) {
-      stopMotor();
-    } 
-    else {
-      float temp = input.toFloat();
-      if (temp > 0) {
-        targetTemperature = temp;
-        Serial.print("Target temperature set to: ");
-        Serial.println(targetTemperature);
-      }
+    if (input.startsWith("Start")) {
+      parseStartCommand(input);
     }
   }
 
-  // Temperature control
-  manageHeating();
+  // Proceed only if the start command is received
+  if (startCommandReceived) {
+    // Temperature control
+    if (manageHeating()) {
+      Serial.println("[INFO] : Temperature OK");
+
+      // Run the motor for a defined duration
+      startMotor(motorRunDuration);
+
+      // Stop the motor and start cooling
+      Serial.println("[INFO] : Motor Off");
+      coolDown();
+
+      // Reset the start command to prevent looping
+      startCommandReceived = false;
+      Serial.println("[INFO] : Process complete. Send 'Start <temperature> <duration>' to begin again.");
+    }
+  }
 
   delay(100);  // Small delay to avoid overload
 }
 
+// Function to parse the Start command and extract parameters
+void parseStartCommand(String command) {
+  int firstSpace = command.indexOf(' ');
+  int secondSpace = command.indexOf(' ', firstSpace + 1);
+
+  if (firstSpace > 0 && secondSpace > firstSpace) {
+    String tempStr = command.substring(firstSpace + 1, secondSpace);
+    String durationStr = command.substring(secondSpace + 1);
+
+    float temp = tempStr.toFloat();
+    unsigned long duration = durationStr.toInt();
+
+    if (temp > 0 && duration > 0) {
+      targetTemperature = temp;
+      motorRunDuration = duration;
+      startCommandReceived = true;
+
+      Serial.print("[INFO] : Start command received with target temperature: ");
+      Serial.print(targetTemperature);
+      Serial.print("[INFO] :  and motor run duration: ");
+      Serial.println(motorRunDuration);
+    } else {
+      Serial.println("[ERROR] : Invalid parameters. Use 'Start <temperature> <duration>'.");
+    }
+  } else {
+    Serial.println("[ERROR] : Invalid command format. Use 'Start <temperature> <duration>'.");
+  }
+}
+
 // Heating control function
-void manageHeating() {
+bool manageHeating() {
   int adcValue = analogRead(THERMISTOR_PIN);
   float resistance = SERIES_RESISTOR / ((SUPPLY_VOLTAGE / (adcValue / (float)ADC_MAX)) - 1);
 
@@ -73,50 +110,43 @@ void manageHeating() {
   temperature = 1.0 / temperature;
   temperature -= 273.15;
 
-  Serial.print("Current temperature: ");
+  Serial.print("[TEMPERATURE] : ");
   Serial.println(temperature);
 
-  if (targetTemperature > 0) {
-    if (temperature < targetTemperature - TEMPERATURE_HYSTERESIS) {
-      digitalWrite(HEATER_PIN, HIGH);  // Turn on the heater
-    } else if (temperature >= targetTemperature + TEMPERATURE_HYSTERESIS) {
-      digitalWrite(HEATER_PIN, LOW);   // Turn off the heater
-    }
-  } else {
-    digitalWrite(HEATER_PIN, LOW);     // Disable if no target
+  if (temperature < targetTemperature - TEMPERATURE_HYSTERESIS) {
+    digitalWrite(HEATER_PIN, HIGH);  // Turn on the heater
+  } else if (temperature >= targetTemperature) {
+    digitalWrite(HEATER_PIN, LOW);   // Turn off the heater
+    Serial.println("[INFO] : Temperature reached."); // Confirmation for C++
+    return true;  // Temperature reached
   }
+
+  return false;  // Temperature not yet reached
 }
 
 // Function to start the motor
-void startMotor() {
-  if (!motorActive) {
-    motorActive = true;
-    digitalWrite(ENABLE_PIN, LOW);  // Activate the motor
-    Serial.println("Motor started.");
-  }
+void startMotor(unsigned long duration) {
+  motorActive = true;
+  digitalWrite(ENABLE_PIN, LOW);  // Activate the motor
+  Serial.println("[INFO] : Motor started.");
 
-  // Run the motor continuously while active
-  while (motorActive) {
+  unsigned long startTime = millis();
+  while (millis() - startTime < duration) {
     digitalWrite(DIR_PIN, HIGH);    // Set direction
     digitalWrite(STEP_PIN, HIGH);
     delayMicroseconds(1000);        // Adjust this value for speed
     digitalWrite(STEP_PIN, LOW);
     delayMicroseconds(1000);
-
-    // Check if a "stop" command is received
-    if (Serial.available() > 0) {
-      String input = Serial.readStringUntil('\n');
-      input.trim();
-      if (input.equalsIgnoreCase("stop")) {
-        stopMotor();
-      }
-    }
   }
-}
 
-// Function to stop the motor
-void stopMotor() {
   motorActive = false;
   digitalWrite(ENABLE_PIN, HIGH);  // Deactivate the motor
-  Serial.println("Motor stopped.");
+}
+
+// Cooling function
+void coolDown() {
+  Serial.println("[INFO] : Cooling extruder...");
+  digitalWrite(HEATER_PIN, LOW); // Ensure heater is off
+  delay(30000); // Cool down for 30 seconds (adjust if needed)
+  Serial.println("[INFO] : Cooling complete.");
 }

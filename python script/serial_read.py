@@ -19,7 +19,7 @@ def read_from_arduino():
     while True:
         if ser.in_waiting > 0:
             line = ser.readline().decode('utf-8').rstrip()
-            print(f"Température reçue par Python : {Fore.RED}{line}{Style.RESET_ALL}")
+            print(f"Ifo reçue par Python : {Fore.RED}{line}{Style.RESET_ALL}")
 
 def send_target_temperature():
     """Demande et envoie une nouvelle température cible à l'Arduino."""
@@ -29,11 +29,13 @@ def send_target_temperature():
             # Affiche la température cible en vert
             print(f"Température cible envoyée : {Fore.GREEN}{target_temperature}{Style.RESET_ALL}")
             ser.write(f"{target_temperature}\n".encode())  # Envoie la température cible à l'Arduino
-
+# 
 # Crée un thread pour lire les données en continu
 thread = Thread(target=read_from_arduino)
 thread.daemon = True  # Le thread s'arrête quand le programme principal est arrêté
 thread.start()
+
+ser.write(f"S".encode())  # Envoie la température cible à l'Arduino
 
 try:
     send_target_temperature()  # Permet à l'utilisateur de définir la température cible à tout moment
